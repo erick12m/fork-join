@@ -45,26 +45,21 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut rdr = ReaderBuilder::new()
                     .delimiter(b',')
                     .from_reader(buffer.as_bytes());
-                let result2 = rdr.records();
-                result2
-                    .map(|l| {
-                        let line = l.unwrap();
-                        (line[3].to_string(), line[7].parse::<i64>().unwrap())
-                    })
-                    .fold(HashMap::new(), |mut acc, (key, value)| {
-                        *acc.entry(key).or_insert(0) += value;
-                        acc
-                    })
-            } else {
-                HashMap::new()
-            }
+                let mut tuples = Vec::new();
+                rdr.records().for_each(|l| {
+                    let line = l.unwrap();
+                    tuples.push((line[3].to_string(), line[7].parse::<i64>().unwrap()));
+                });
+                return tuples;
+            };
+            Vec::new()
         })
         .fold(HashMap::new(), |mut acc, (key, value)| {
             *acc.entry(key).or_insert(0) += value;
             acc
         });
     println!("{:?}", start.elapsed());
-    println!("{:?}", result.get("marshmello"));
+    println!("{:?}", result.get("ALPHA MUSIC EMPIRE"));
     Ok(())
 }
 
