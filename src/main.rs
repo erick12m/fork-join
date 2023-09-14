@@ -1,9 +1,11 @@
 use csv::ReaderBuilder;
+use rayon::prelude::*;
 use std::{
     collections::HashMap,
     error::Error,
     fs::{read_dir, File},
     io::{BufRead, BufReader, Read},
+    path::PathBuf,
     time::Instant,
 };
 
@@ -38,6 +40,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
     let result = read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/dataset"))?
         .map(|d| d.unwrap().path())
+        .collect::<Vec<PathBuf>>()
+        .par_iter()
         .flat_map(|path| {
             let mut f = File::open(path).unwrap();
             let mut buffer = String::new();
@@ -45,21 +49,27 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut rdr = ReaderBuilder::new()
                     .delimiter(b',')
                     .from_reader(buffer.as_bytes());
-                let mut tuples = Vec::new();
+                let mut maps = Vec::new();
                 rdr.records().for_each(|l| {
                     let line = l.unwrap();
-                    tuples.push((line[3].to_string(), line[7].parse::<i64>().unwrap()));
+                    let mut map = HashMap::new();
+                    map.insert(line[3].to_string(), line[7].parse::<i64>().unwrap());
+                    maps.push(map);
                 });
-                return tuples;
+                return maps;
             };
             Vec::new()
         })
-        .fold(HashMap::new(), |mut acc, (key, value)| {
-            *acc.entry(key).or_insert(0) += value;
-            acc
-        });
+        .reduce(
+            || HashMap::new(),
+            |mut acc, hash| {
+                hash.iter()
+                    .for_each(|(k, v)| *acc.entry(k.clone()).or_insert(0) += v);
+                acc
+            },
+        );
     println!("{:?}", start.elapsed());
-    println!("{:?}", result.get("ALPHA MUSIC EMPIRE"));
+    println!("{:?}", result.get("marshmello"));
     Ok(())
 }
 
