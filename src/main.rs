@@ -36,34 +36,40 @@ fn read_csv(data: &str) -> Result<(), Box<dyn Error>> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
-    let result = read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/dataset"))
-        .unwrap()
+    let result = read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/dataset"))?
         .map(|d| d.unwrap().path())
         .flat_map(|path| {
             let mut f = File::open(path).unwrap();
             let mut buffer = String::new();
-            f.read_to_string(&mut buffer).unwrap();
-            let mut rdr = ReaderBuilder::new()
-                .delimiter(b',')
-                .from_reader(buffer.as_bytes());
-            let result2 = rdr.records();
-            result2
-        })
-        .map(|l| {
-            let line = l.unwrap();
-            (line[3].to_string(), line[7].parse::<i32>().unwrap())
+            if let Ok(_) = f.read_to_string(&mut buffer) {
+                let mut rdr = ReaderBuilder::new()
+                    .delimiter(b',')
+                    .from_reader(buffer.as_bytes());
+                let result2 = rdr.records();
+                result2
+                    .map(|l| {
+                        let line = l.unwrap();
+                        (line[3].to_string(), line[7].parse::<i64>().unwrap())
+                    })
+                    .fold(HashMap::new(), |mut acc, (key, value)| {
+                        *acc.entry(key).or_insert(0) += value;
+                        acc
+                    })
+            } else {
+                HashMap::new()
+            }
         })
         .fold(HashMap::new(), |mut acc, (key, value)| {
             *acc.entry(key).or_insert(0) += value;
             acc
         });
     println!("{:?}", start.elapsed());
-    println!("{:?}", result);
+    println!("{:?}", result.get("marshmello"));
     Ok(())
 }
 
 //test
-
+#[test]
 fn test() {
     let start = Instant::now();
     let result = read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/data"))
